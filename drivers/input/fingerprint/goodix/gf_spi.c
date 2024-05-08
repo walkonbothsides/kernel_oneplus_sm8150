@@ -443,43 +443,11 @@ static int __always_inline goodix_fb_state_chg_callback(
 	struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct msm_drm_notifier *evdata = data;
-	struct gf_dev *gf_dev = container_of(nb, struct gf_dev, msm_drm_notif);
-	unsigned int blank;
-	switch (val) {
-	case MSM_DRM_EARLY_EVENT_BLANK:
-		if (evdata->data && gf_dev) {
-			blank = *(unsigned int*)evdata->data;
-
-			if (gf_dev->device_available == 1) {
-				switch (blank) {
-				case MSM_DRM_BLANK_POWERDOWN:
-					gf_dev->fb_black = 1;
-					sendnlmsg((char[]){2});
-					return NOTIFY_OK;
-				case MSM_DRM_BLANK_UNBLANK:
-					gf_dev->fb_black = 0;
-					sendnlmsg((char[]){3});
-					return NOTIFY_OK;
-					default:
-				return NOTIFY_OK;
-				}
-			}
-		}
-		break;
-	case MSM_DRM_ONSCREENFINGERPRINT_EVENT:
-		blank = *(unsigned int*)evdata->data;
-		switch (blank) {
-		case 0:
-			sendnlmsg((char[]){7});
-			return NOTIFY_OK;
-		case 1:
-			sendnlmsg((char[]){6});
-			return NOTIFY_OK;
-		default:
-			return NOTIFY_OK;
-		}
-		break;
+	unsigned int blank = *(unsigned int*)evdata->data;
+	if (val != MSM_DRM_ONSCREENFINGERPRINT_EVENT) {
+		return NOTIFY_OK;
 	}
+	sendnlmsg((char[]){(blank == 1) ? 6 : 7});
 	return NOTIFY_OK;
 }
 
@@ -494,7 +462,6 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->irq_gpio = -EINVAL;
 	gf_dev->reset_gpio = -EINVAL;
 	gf_dev->pwr_gpio = -EINVAL;
-	gf_dev->device_available = 1;
 	gf_dev->fb_black = 0;
 
 	/* If we can allocate a minor number, hook up this device.
@@ -587,8 +554,6 @@ err_irq:
 	gf_cleanup(gf_dev);
 err_parse_dt:
 error_hw:
-	gf_dev->device_available = 0;
-
 	return status;
 }
 
