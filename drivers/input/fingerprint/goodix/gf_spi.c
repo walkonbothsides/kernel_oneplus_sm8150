@@ -418,27 +418,21 @@ EXPORT_SYMBOL(opticalfp_irq_handler);
 int __always_inline gf_opticalfp_irq_handler(int event)
 {
 	struct gf_dev *gf_dev = &gf;
-	if (gf.spi == NULL) {
+
+	if (gf_dev->spi == NULL)
 		return 0;
-	}
+
 	gf_dev->gf_dev_req.type = PM_QOS_REQ_AFFINE_IRQ;
 	gf_dev->gf_dev_req.irq = gf_dev->irq;
 	irq_set_perf_affinity(gf_dev->irq, IRQF_PRIME_AFFINE);
-	pm_qos_add_request(&gf_dev->gf_dev_req, PM_QOS_CPU_DMA_LATENCY,
-		100);
+	pm_qos_add_request(&gf_dev->gf_dev_req, PM_QOS_CPU_DMA_LATENCY, 100);
 	__pm_wakeup_event(&fp_wakelock, 2000);
-	switch(event) {
-	case 1:
-	  gf_dev->udfps_pressed = 1;
-	  sysfs_notify(&gf_dev->spi->dev.kobj, NULL, dev_attr_udfps_pressed.attr.name);
-	  sendnlmsg(&(char){4});
-	  break;
-	case 0:
-	  gf_dev->udfps_pressed = 0;
-	  sysfs_notify(&gf_dev->spi->dev.kobj, NULL, dev_attr_udfps_pressed.attr.name);
-	  sendnlmsg(&(char){5});
-	  break;
-	}
+
+	gf_dev->udfps_pressed = event;
+	sysfs_notify(&gf_dev->spi->dev.kobj, NULL, dev_attr_udfps_pressed.attr.name);
+
+	sendnlmsg((char[]){(event == 1) ? 4 : 5});
+
 	pm_qos_remove_request(&gf_dev->gf_dev_req);
 
 	return 0;
